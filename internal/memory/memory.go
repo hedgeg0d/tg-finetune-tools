@@ -46,9 +46,9 @@ func Run(inPath, outPath string, mcfg config.Memory, roles config.Roles) (Stats,
 	if err != nil {
 		return Stats{}, err
 	}
-	wins := windows(msgs, roles, counter.Count, mcfg.WindowTokens)
+	wins := windows(msgs, counter.Count, mcfg.WindowTokens)
 
-	facts, err := extractAll(wins, roles, mcfg)
+	facts, err := extractAll(wins, mcfg)
 	if err != nil {
 		return Stats{}, err
 	}
@@ -81,22 +81,21 @@ func Run(inPath, outPath string, mcfg config.Memory, roles config.Roles) (Stats,
 }
 
 func filterRoles(msgs []model.Message, roles config.Roles) []model.Message {
-	known := map[string]bool{roles.AssistantID: true, roles.UserID: true}
 	out := msgs[:0]
 	for _, m := range msgs {
-		if known[m.FromID] {
+		if m.FromID == roles.AssistantID {
 			out = append(out, m)
 		}
 	}
 	return out
 }
 
-func windows(msgs []model.Message, roles config.Roles, count func(string) int, maxTokens int) [][]model.Message {
+func windows(msgs []model.Message, count func(string) int, maxTokens int) [][]model.Message {
 	var out [][]model.Message
 	var cur []model.Message
 	size := 0
 	for _, m := range msgs {
-		c := count(line(m, roles))
+		c := count(m.Text)
 		if size+c > maxTokens && len(cur) > 0 {
 			out = append(out, cur)
 			cur = nil
@@ -109,14 +108,6 @@ func windows(msgs []model.Message, roles config.Roles, count func(string) int, m
 		out = append(out, cur)
 	}
 	return out
-}
-
-func line(m model.Message, roles config.Roles) string {
-	role := "user"
-	if m.FromID == roles.AssistantID {
-		role = "assistant"
-	}
-	return role + ": " + m.Text
 }
 
 func write(path string, records []Record) error {

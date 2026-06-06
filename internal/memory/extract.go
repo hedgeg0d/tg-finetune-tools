@@ -12,19 +12,20 @@ import (
 	"github.com/hedgeg0d/tg-finetune-tools/internal/model"
 )
 
-const defaultExtractInstruction = "Дан фрагмент переписки двух людей; реплики помечены `assistant:` и `user:`. " +
-	"Извлеки устойчивые факты ТОЛЬКО про человека `assistant` (её жизнь, работа, учёба, здоровье, " +
-	"отношения, вкусы, привычки, взгляды). НЕ включай факты про `user`, не пересказывай отдельные " +
-	"реплики и эмоции момента, не выдумывай. Каждый факт — короткое утверждение в третьем лице. " +
+const defaultExtractInstruction = "Ниже — сообщения ОДНОГО человека (это девушка) из её личной переписки. " +
+	"Извлеки устойчивые факты ТОЛЬКО о ней самой — авторе этих сообщений (её жизнь, работа, учёба, " +
+	"здоровье, отношения, вкусы, привычки, взгляды). СТРОГО НЕ извлекай факты о других людях, которых " +
+	"она упоминает или обсуждает (её парень/собеседник, друзья, родственники, знакомые, публичные лица). " +
+	"Не выдумывай и не пересказывай сиюминутные эмоции. Каждый факт — короткое утверждение в третьем лице о ней. " +
 	"Ответь СТРОГО валидным JSON-массивом строк в двойных кавычках, например: " +
-	"[\"любит кошек\",\"учится на юриста\"]. Если устойчивых фактов нет — верни []."
+	"[\"любит кошек\",\"живёт в Москве\"]. Если устойчивых фактов о ней нет — верни []."
 
 type extractCache struct {
 	Processed int    `json:"processed"`
 	Facts     []fact `json:"facts"`
 }
 
-func extractAll(wins [][]model.Message, roles config.Roles, mcfg config.Memory) ([]fact, error) {
+func extractAll(wins [][]model.Message, mcfg config.Memory) ([]fact, error) {
 	cache, _ := loadJSON[extractCache](mcfg.CacheFile)
 	start := cache.Processed
 
@@ -56,7 +57,7 @@ func extractAll(wins [][]model.Message, roles config.Roles, mcfg config.Memory) 
 			wg.Add(1)
 			go func(i int) {
 				defer wg.Done()
-				results[i], errs[i] = extractWindow(client, instr, batch[i], roles)
+				results[i], errs[i] = extractWindow(client, instr, batch[i])
 			}(i)
 		}
 		wg.Wait()
@@ -87,10 +88,10 @@ func add(facts *[]fact, seen map[string]bool, f fact) bool {
 	return true
 }
 
-func extractWindow(client *llm.Client, instr string, win []model.Message, roles config.Roles) ([]fact, error) {
+func extractWindow(client *llm.Client, instr string, win []model.Message) ([]fact, error) {
 	var b strings.Builder
 	for _, m := range win {
-		b.WriteString(line(m, roles))
+		b.WriteString(m.Text)
 		b.WriteByte('\n')
 	}
 	out, err := client.Generate(instr, b.String())
