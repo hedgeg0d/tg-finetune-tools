@@ -8,6 +8,7 @@ import (
 
 	"github.com/hedgeg0d/tg-finetune-tools/internal/config"
 	"github.com/hedgeg0d/tg-finetune-tools/internal/dataset"
+	"github.com/hedgeg0d/tg-finetune-tools/internal/llm"
 )
 
 const defaultInstruction = "Below are real messages written by one person in a private chat. " +
@@ -54,10 +55,10 @@ func generated(convs []dataset.Conversation, cfg config.Config, offline bool) ([
 				prompts = append(prompts, "<generated at build time>")
 			}
 		} else {
-			c := newClient(g)
+			c := llm.New(g)
 			for b := len(prompts); b < batches; b++ {
 				fmt.Fprintf(os.Stderr, "\r  system prompts: %d/%d   ", b+1, batches)
-				p, err := c.generate(instruction(g), batchContext(convs, b, g))
+				p, err := c.Generate(instruction(g), batchContext(convs, b, g))
 				if err != nil {
 					return nil, fmt.Errorf("generate system prompt for batch %d: %w", b, err)
 				}

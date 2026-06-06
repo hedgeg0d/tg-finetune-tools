@@ -47,5 +47,37 @@
     "seed": 42,
     "dedup": true,
     "min_assistant_runes": 0
+  },
+  "memory": {
+    "window_tokens": 1500,
+    "token_encoding": "cl100k_base",
+    "workers": 4,
+    "cache_file": "memory_facts.json",
+    "do_consolidate": true,
+    "consolidate_passes": 2,
+    "do_embeddings": true,
+    "extract": {
+      "api_base": "https://api.openai.com/v1",
+      "api_style": "openai",
+      "api_key_env": "OPENAI_API_KEY",
+      "model": "gpt-4o-mini",
+      "temperature": 0.2,
+      "instruction": ""
+    },
+    "consolidate": {
+      "api_base": "https://api.openai.com/v1",
+      "api_style": "openai",
+      "api_key_env": "OPENAI_API_KEY",
+      "model": "gpt-4o-mini",
+      "temperature": 0.3,
+      "batch_size": 40,
+      "instruction": ""
+    },
+    "embeddings": {
+      "api_base": "https://api.openai.com/v1",
+      "api_style": "openai",
+      "api_key_env": "OPENAI_API_KEY",
+      "model": "text-embedding-3-small"
+    }
   }
 }

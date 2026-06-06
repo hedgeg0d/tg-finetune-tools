@@ -59,11 +59,25 @@ type Build struct {
 	MinAssistantRunes int     `json:"min_assistant_runes"`
 }
 
+type Memory struct {
+	WindowTokens      int       `json:"window_tokens"`
+	TokenEncoding     string    `json:"token_encoding"`
+	Workers           int       `json:"workers"`
+	CacheFile         string    `json:"cache_file"`
+	Extract           Generated `json:"extract"`
+	DoConsolidate     bool      `json:"do_consolidate"`
+	ConsolidatePasses int       `json:"consolidate_passes"`
+	Consolidate       Generated `json:"consolidate"`
+	DoEmbeddings      bool      `json:"do_embeddings"`
+	Embeddings        Generated `json:"embeddings"`
+}
+
 type Config struct {
-	Workers int   `json:"workers"`
-	Roles   Roles `json:"roles"`
-	Clean   Clean `json:"clean"`
-	Build   Build `json:"build"`
+	Workers int    `json:"workers"`
+	Roles   Roles  `json:"roles"`
+	Clean   Clean  `json:"clean"`
+	Build   Build  `json:"build"`
+	Memory  Memory `json:"memory"`
 }
 
 func Default() Config {
@@ -102,6 +116,33 @@ func Default() Config {
 					Temperature:    0.8,
 					CacheFile:      "system_prompts.json",
 				},
+			},
+		},
+		Memory: Memory{
+			WindowTokens:      1500,
+			TokenEncoding:     "cl100k_base",
+			Workers:           4,
+			CacheFile:         "memory_facts.json",
+			DoConsolidate:     true,
+			ConsolidatePasses: 2,
+			DoEmbeddings:      true,
+			Extract: Generated{
+				APIBase:     "http://localhost:11434",
+				APIStyle:    "ollama",
+				Model:       "qwen3.5:9b",
+				Temperature: 0.2,
+			},
+			Consolidate: Generated{
+				APIBase:     "http://localhost:11434",
+				APIStyle:    "ollama",
+				Model:       "qwen3.5:9b",
+				Temperature: 0.3,
+				BatchSize:   40,
+			},
+			Embeddings: Generated{
+				APIBase:  "http://localhost:11434",
+				APIStyle: "ollama",
+				Model:    "nomic-embed-text",
 			},
 		},
 	}

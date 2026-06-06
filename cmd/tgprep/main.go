@@ -8,6 +8,7 @@ import (
 	"github.com/hedgeg0d/tg-finetune-tools/internal/clean"
 	"github.com/hedgeg0d/tg-finetune-tools/internal/config"
 	"github.com/hedgeg0d/tg-finetune-tools/internal/dataset"
+	"github.com/hedgeg0d/tg-finetune-tools/internal/memory"
 	"github.com/hedgeg0d/tg-finetune-tools/internal/pipeline"
 	"github.com/hedgeg0d/tg-finetune-tools/internal/progress"
 )
@@ -29,6 +30,8 @@ func main() {
 		err = runBuild(args)
 	case "all":
 		err = runAll(args)
+	case "memory":
+		err = runMemory(args)
 	case "inspect":
 		err = runInspect(args)
 	case "-h", "--help", "help":
@@ -235,6 +238,41 @@ func splitNote(bs pipeline.BuildStats, out string, cfg config.Config) string {
 	return fmt.Sprintf(" -> train %d (%s), val %d (%s)", bs.Train, train, bs.Val, val)
 }
 
+func runMemory(args []string) error {
+	fs := flag.NewFlagSet("memory", flag.ExitOnError)
+	in := fs.String("in", "clean.jsonl", "normalized jsonl input")
+	out := fs.String("out", "memory.jsonl", "RAG memory output jsonl")
+	cfgPath := fs.String("config", "", "config file (json)")
+	workers := fs.Int("workers", 0, "override memory.workers")
+	fs.Parse(args)
+
+	cfg, err := loadConfig(*cfgPath, 0)
+	if err != nil {
+		return err
+	}
+	if err := requireRoles(cfg); err != nil {
+		return err
+	}
+	if cfg.Memory.Extract.APIBase == "" || cfg.Memory.Extract.Model == "" {
+		return fmt.Errorf("memory.extract.api_base and model must be set")
+	}
+	if *workers > 0 {
+		cfg.Memory.Workers = *workers
+	}
+
+	fmt.Fprintf(os.Stderr, "\033[33mwarning:\033[0m memory will send sampled messages to %s (model %s).\n", cfg.Memory.Extract.APIBase, cfg.Memory.Extract.Model)
+	st, err := memory.Run(*in, *out, cfg.Memory, cfg.Roles)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(os.Stderr, "memory: %d windows -> %d raw facts -> %d consolidated", st.Windows, st.RawFacts, st.Consolidated)
+	if st.Embedded > 0 {
+		fmt.Fprintf(os.Stderr, " (embedded %d)", st.Embedded)
+	}
+	fmt.Fprintf(os.Stderr, " -> %s\n", *out)
+	return nil
+}
+
 func runInspect(args []string) error {
 	fs := flag.NewFlagSet("inspect", flag.ExitOnError)
 	in := fs.String("in", "", "telegram export result.json")
@@ -287,5 +325,6 @@ usage:
   tgprep clean   --in result.json --out clean.jsonl   [--config c.json] [--workers N]
   tgprep build   --in clean.jsonl --out dataset.jsonl [--config c.json]
   tgprep all     --in result.json --out dataset.jsonl [--config c.json] [--workers N]
+  tgprep memory  --in clean.jsonl --out memory.jsonl  [--config c.json] [--workers N]
 `)
 }

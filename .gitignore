@@ -4,3 +4,5 @@ ChatExport_*/
 config.json
 system_prompts.json
 *.log
+memory_facts.json
+memtest*

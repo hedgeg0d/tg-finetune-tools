@@ -42,6 +42,9 @@ go build -o tgprep ./cmd/tgprep
 ./tgprep clean --in result.json  --out clean.jsonl   --config config.json
 ./tgprep build --in clean.jsonl  --out dataset.jsonl --config config.json
 
+# extract a RAG memory of facts about the person (separate from fine-tuning)
+./tgprep memory --in clean.jsonl --out memory.jsonl  --config config.json
+
 # preview sample conversations without writing anything
 ./tgprep all --in result.json --config config.json --dry-run --sample 5
 ```
@@ -115,6 +118,22 @@ Ollama's native `/api/chat` and disables model "thinking" for fast, clean output
 > **Privacy:** `generated` mode sends private messages to `api_base`. Point it at a
 > local server (Ollama, llama.cpp, vLLM) to keep data on your machine, or enable
 > `clean.redact_pii`. The API key is read from the env var named by `api_key_env`.
+
+## Memory (RAG)
+
+Fine-tuning teaches *style*, not *facts*. The `memory` command builds a separate
+knowledge base of durable facts about the person, for retrieval at inference time:
+
+1. **extract** — the cleaned chat is split into token-sized windows; an LLM pulls
+   atomic facts about the `assistant` role from each (concurrent, cached/resumable).
+2. **consolidate** — raw facts are merged in batches over several passes to drop
+   duplicates and resolve contradictions, preferring the most recent.
+3. **embeddings** — each final fact is embedded for vector search.
+
+Output is `memory.jsonl` (`{text, embedding}` per line). The `extract`,
+`consolidate`, and `embeddings` steps each take an OpenAI-compatible endpoint
+(`api_style` `openai` or `ollama`); the same privacy note as generated system
+prompts applies.
 
 ## License
 
