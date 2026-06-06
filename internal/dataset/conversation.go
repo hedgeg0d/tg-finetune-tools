@@ -17,7 +17,9 @@ type Conversation struct {
 	Turns []Turn
 }
 
-func Build(msgs []model.Message, cfg config.Config) []Conversation {
+type Measure func(string) int
+
+func Build(msgs []model.Message, cfg config.Config, measure Measure) []Conversation {
 	sort.SliceStable(msgs, func(i, j int) bool {
 		if msgs[i].Date != msgs[j].Date {
 			return msgs[i].Date < msgs[j].Date
@@ -30,7 +32,7 @@ func Build(msgs []model.Message, cfg config.Config) []Conversation {
 	var session []model.Message
 
 	flush := func() {
-		out = append(out, assembleSession(session, cfg)...)
+		out = append(out, assembleSession(session, cfg, measure)...)
 		session = session[:0]
 	}
 
@@ -47,7 +49,7 @@ func Build(msgs []model.Message, cfg config.Config) []Conversation {
 	return out
 }
 
-func assembleSession(msgs []model.Message, cfg config.Config) []Conversation {
+func assembleSession(msgs []model.Message, cfg config.Config, measure Measure) []Conversation {
 	if len(msgs) == 0 {
 		return nil
 	}
@@ -63,7 +65,7 @@ func assembleSession(msgs []model.Message, cfg config.Config) []Conversation {
 	}
 
 	var out []Conversation
-	for _, window := range chunk(turns, cfg) {
+	for _, window := range chunk(turns, cfg, measure) {
 		if conv, ok := finalize(window, cfg); ok {
 			out = append(out, conv)
 		}
@@ -71,28 +73,31 @@ func assembleSession(msgs []model.Message, cfg config.Config) []Conversation {
 	return out
 }
 
-func chunk(turns []Turn, cfg config.Config) [][]Turn {
+func chunk(turns []Turn, cfg config.Config, measure Measure) [][]Turn {
 	maxTurns := cfg.Build.MaxTurns
-	maxChars := cfg.Build.MaxChars
-	if maxTurns <= 0 && maxChars <= 0 {
+	maxSize := cfg.Build.MaxChars
+	if cfg.Build.MaxTokens > 0 {
+		maxSize = cfg.Build.MaxTokens
+	}
+	if maxTurns <= 0 && maxSize <= 0 {
 		return [][]Turn{turns}
 	}
 
 	var windows [][]Turn
 	var cur []Turn
-	chars := 0
+	size := 0
 
 	for _, t := range turns {
-		c := utf8.RuneCountInString(t.Content)
+		c := measure(t.Content)
 		overTurns := maxTurns > 0 && len(cur) >= maxTurns
-		overChars := maxChars > 0 && chars+c > maxChars && len(cur) > 0
-		if overTurns || overChars {
+		overSize := maxSize > 0 && size+c > maxSize && len(cur) > 0
+		if overTurns || overSize {
 			windows = append(windows, cur)
 			cur = nil
-			chars = 0
+			size = 0
 		}
 		cur = append(cur, t)
-		chars += c
+		size += c
 	}
 	if len(cur) > 0 {
 		windows = append(windows, cur)

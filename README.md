@@ -68,6 +68,8 @@ Run `./tgprep <command> -h` for the full flag list.
 | `clean.min_runes` | discard messages shorter than this |
 | `build.session_gap_minutes` | inactivity gap that starts a new conversation |
 | `build.max_turns` / `max_chars` | window size for long sessions (`0` = unlimited) |
+| `build.max_tokens` | window by token count instead of characters (`> 0` takes priority over `max_chars`) |
+| `build.token_encoding` | tiktoken encoding for `max_tokens` (e.g. `cl100k_base`, `o200k_base`) |
 | `build.min_turns` | discard conversations shorter than this |
 | `build.dedup` | drop conversations that are exact duplicates |
 | `build.min_assistant_runes` | drop conversations where the assistant says too little |

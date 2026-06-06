@@ -26,6 +26,8 @@ type Build struct {
 	SessionGapMinutes int     `json:"session_gap_minutes"`
 	MaxTurns          int     `json:"max_turns"`
 	MaxChars          int     `json:"max_chars"`
+	MaxTokens         int     `json:"max_tokens"`
+	TokenEncoding     string  `json:"token_encoding"`
 	MinTurns          int     `json:"min_turns"`
 	Format            string  `json:"format"`
 	System            string  `json:"system"`
@@ -60,6 +62,8 @@ func Default() Config {
 			SessionGapMinutes: 180,
 			MaxTurns:          20,
 			MaxChars:          6000,
+			MaxTokens:         0,
+			TokenEncoding:     "cl100k_base",
 			MinTurns:          2,
 			Format:            "openai",
 			StartWithUser:     true,

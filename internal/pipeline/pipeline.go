@@ -6,12 +6,14 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"unicode/utf8"
 
 	"github.com/hedgeg0d/tg-finetune-tools/internal/clean"
 	"github.com/hedgeg0d/tg-finetune-tools/internal/config"
 	"github.com/hedgeg0d/tg-finetune-tools/internal/dataset"
 	"github.com/hedgeg0d/tg-finetune-tools/internal/model"
 	"github.com/hedgeg0d/tg-finetune-tools/internal/telegram"
+	"github.com/hedgeg0d/tg-finetune-tools/internal/tokenize"
 )
 
 type CleanStats struct {
@@ -152,7 +154,12 @@ func normalizeStream(in *os.File, cfg config.Config, stats *CleanStats, sink fun
 }
 
 func writeConversations(outPath string, msgs []model.Message, cfg config.Config) (BuildStats, error) {
-	convs := dataset.Build(msgs, cfg)
+	measure, err := measureFor(cfg)
+	if err != nil {
+		return BuildStats{}, err
+	}
+
+	convs := dataset.Build(msgs, cfg, measure)
 	duplicates := 0
 	if cfg.Build.Dedup {
 		before := len(convs)
@@ -201,6 +208,17 @@ func writeSplit(path string, convs []dataset.Conversation, cfg config.Config) er
 		}
 	}
 	return w.Flush()
+}
+
+func measureFor(cfg config.Config) (dataset.Measure, error) {
+	if cfg.Build.MaxTokens <= 0 {
+		return utf8.RuneCountInString, nil
+	}
+	counter, err := tokenize.New(cfg.Build.TokenEncoding)
+	if err != nil {
+		return nil, err
+	}
+	return counter.Count, nil
 }
 
 func SplitPaths(out string) (train, val string) {

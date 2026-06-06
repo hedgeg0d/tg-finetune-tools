@@ -2,6 +2,7 @@ package dataset
 
 import (
 	"testing"
+	"unicode/utf8"
 
 	"github.com/hedgeg0d/tg-finetune-tools/internal/config"
 	"github.com/hedgeg0d/tg-finetune-tools/internal/model"
@@ -14,6 +15,8 @@ func testCfg() config.Config {
 	return c
 }
 
+var runes Measure = utf8.RuneCountInString
+
 func msg(id, date int64, from, text string) model.Message {
 	return model.Message{ID: id, Date: date, FromID: from, Text: text}
 }
@@ -24,7 +27,7 @@ func TestBuildMergesBurstsAndRoles(t *testing.T) {
 		msg(2, 1, "u", "there"),
 		msg(3, 2, "a", "hey"),
 	}
-	convs := Build(in, testCfg())
+	convs := Build(in, testCfg(), runes)
 	if len(convs) != 1 {
 		t.Fatalf("convs=%d", len(convs))
 	}
@@ -43,7 +46,7 @@ func TestBuildSplitsBySessionGap(t *testing.T) {
 		msg(3, 10000, "u", "c"),
 		msg(4, 10010, "a", "d"),
 	}
-	if got := len(Build(in, cfg)); got != 2 {
+	if got := len(Build(in, cfg, runes)); got != 2 {
 		t.Fatalf("sessions=%d", got)
 	}
 }
@@ -59,7 +62,7 @@ func TestBuildWindowsByMaxTurns(t *testing.T) {
 		}
 		in = append(in, msg(i, i, from, "x"))
 	}
-	convs := Build(in, cfg)
+	convs := Build(in, cfg, runes)
 	if len(convs) != 4 {
 		t.Fatalf("windows=%d", len(convs))
 	}
@@ -72,11 +75,11 @@ func TestBuildDropsLowAssistantContent(t *testing.T) {
 		msg(1, 0, "u", "how are you doing today"),
 		msg(2, 1, "a", "ok"),
 	}
-	if got := len(Build(in, cfg)); got != 0 {
+	if got := len(Build(in, cfg, runes)); got != 0 {
 		t.Fatalf("convs=%d", got)
 	}
 	cfg.Build.MinAssistantRunes = 1
-	if got := len(Build(in, cfg)); got != 1 {
+	if got := len(Build(in, cfg, runes)); got != 1 {
 		t.Fatalf("convs=%d", got)
 	}
 }
@@ -93,7 +96,7 @@ func TestDedupRemovesIdenticalConversations(t *testing.T) {
 
 func TestBuildDropsConversationWithoutAssistant(t *testing.T) {
 	in := []model.Message{msg(1, 0, "u", "a"), msg(2, 1, "u", "b")}
-	if got := len(Build(in, testCfg())); got != 0 {
+	if got := len(Build(in, testCfg(), runes)); got != 0 {
 		t.Fatalf("convs=%d", got)
 	}
 }

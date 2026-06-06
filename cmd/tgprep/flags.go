@@ -18,6 +18,8 @@ type overrides struct {
 	gap               int
 	maxTurns          int
 	maxChars          int
+	maxTokens         int
+	tokenEncoding     string
 	minTurns          int
 	format            string
 	system            string
@@ -43,6 +45,8 @@ func registerOverrides(fs *flag.FlagSet) *overrides {
 	fs.IntVar(&o.gap, "gap", 0, "override build.session_gap_minutes")
 	fs.IntVar(&o.maxTurns, "max-turns", 0, "override build.max_turns")
 	fs.IntVar(&o.maxChars, "max-chars", 0, "override build.max_chars")
+	fs.IntVar(&o.maxTokens, "max-tokens", 0, "override build.max_tokens (windows by tokens when > 0)")
+	fs.StringVar(&o.tokenEncoding, "token-encoding", "", "override build.token_encoding (e.g. cl100k_base, o200k_base)")
 	fs.IntVar(&o.minTurns, "min-turns", 0, "override build.min_turns")
 	fs.StringVar(&o.format, "format", "", "override build.format (openai|sharegpt)")
 	fs.StringVar(&o.system, "system", "", "override build.system prompt")
@@ -81,6 +85,10 @@ func (o *overrides) apply(fs *flag.FlagSet, cfg *config.Config) {
 			cfg.Build.MaxTurns = o.maxTurns
 		case "max-chars":
 			cfg.Build.MaxChars = o.maxChars
+		case "max-tokens":
+			cfg.Build.MaxTokens = o.maxTokens
+		case "token-encoding":
+			cfg.Build.TokenEncoding = o.tokenEncoding
 		case "min-turns":
 			cfg.Build.MinTurns = o.minTurns
 		case "format":
