@@ -1,0 +1,50 @@
+{
+  "workers": 8,
+  "roles": {
+    "assistant_id": "user100000001",
+    "user_id": "user100000002"
+  },
+  "clean": {
+    "strip_links": true,
+    "stickers_to_emoji": true,
+    "drop_forwarded": true,
+    "drop_via_bot": true,
+    "redact_pii": false,
+    "min_runes": 1
+  },
+  "build": {
+    "session_gap_minutes": 180,
+    "max_turns": 20,
+    "max_chars": 6000,
+    "max_tokens": 0,
+    "token_encoding": "cl100k_base",
+    "min_turns": 2,
+    "format": "openai",
+    "system": {
+      "mode": "fixed",
+      "fixed": "You are the persona. Reply the way they do in a personal chat.",
+      "pool": [
+        "You are the persona. Write the way they do in private messages: tone, manner, quirks.",
+        "Reply in the persona's style from their real messages — natural and lively.",
+        "Act as the persona: their character, rhythm of speech, emoji and habits."
+      ],
+      "generated": {
+        "api_base": "https://api.openai.com/v1",
+        "api_key_env": "OPENAI_API_KEY",
+        "model": "gpt-4o-mini",
+        "batch_size": 100,
+        "context_samples": 20,
+        "temperature": 0.8,
+        "instruction": "",
+        "cache_file": "system_prompts.json"
+      }
+    },
+    "start_with_user": true,
+    "require_assistant": true,
+    "burst_separator": "\n",
+    "val_ratio": 0.1,
+    "seed": 42,
+    "dedup": true,
+    "min_assistant_runes": 0
+  }
+}

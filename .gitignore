@@ -1,0 +1,4 @@
+/tgprep
+*.jsonl
+ChatExport_*/
+config.json
