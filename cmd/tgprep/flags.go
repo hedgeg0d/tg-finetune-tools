@@ -23,6 +23,8 @@ type overrides struct {
 	startWithUser    bool
 	requireAssistant bool
 	burstSep         string
+	valRatio         float64
+	seed             int64
 }
 
 func registerOverrides(fs *flag.FlagSet) *overrides {
@@ -43,6 +45,8 @@ func registerOverrides(fs *flag.FlagSet) *overrides {
 	fs.BoolVar(&o.startWithUser, "start-with-user", false, "override build.start_with_user")
 	fs.BoolVar(&o.requireAssistant, "require-assistant", false, "override build.require_assistant")
 	fs.StringVar(&o.burstSep, "burst-sep", "", "override build.burst_separator")
+	fs.Float64Var(&o.valRatio, "val-ratio", 0, "override build.val_ratio (0 = no split)")
+	fs.Int64Var(&o.seed, "seed", 0, "override build.seed (shuffle for val split)")
 	return o
 }
 
@@ -81,6 +85,10 @@ func (o *overrides) apply(fs *flag.FlagSet, cfg *config.Config) {
 			cfg.Build.RequireAssistant = o.requireAssistant
 		case "burst-sep":
 			cfg.Build.BurstSeparator = o.burstSep
+		case "val-ratio":
+			cfg.Build.ValRatio = o.valRatio
+		case "seed":
+			cfg.Build.Seed = o.seed
 		}
 	})
 }

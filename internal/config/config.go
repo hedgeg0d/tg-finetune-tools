@@ -22,15 +22,17 @@ type Clean struct {
 }
 
 type Build struct {
-	SessionGapMinutes int    `json:"session_gap_minutes"`
-	MaxTurns          int    `json:"max_turns"`
-	MaxChars          int    `json:"max_chars"`
-	MinTurns          int    `json:"min_turns"`
-	Format            string `json:"format"`
-	System            string `json:"system"`
-	StartWithUser     bool   `json:"start_with_user"`
-	RequireAssistant  bool   `json:"require_assistant"`
-	BurstSeparator    string `json:"burst_separator"`
+	SessionGapMinutes int     `json:"session_gap_minutes"`
+	MaxTurns          int     `json:"max_turns"`
+	MaxChars          int     `json:"max_chars"`
+	MinTurns          int     `json:"min_turns"`
+	Format            string  `json:"format"`
+	System            string  `json:"system"`
+	StartWithUser     bool    `json:"start_with_user"`
+	RequireAssistant  bool    `json:"require_assistant"`
+	BurstSeparator    string  `json:"burst_separator"`
+	ValRatio          float64 `json:"val_ratio"`
+	Seed              int64   `json:"seed"`
 }
 
 type Config struct {
@@ -59,6 +61,8 @@ func Default() Config {
 			StartWithUser:     true,
 			RequireAssistant:  true,
 			BurstSeparator:    "\n",
+			ValRatio:          0,
+			Seed:              42,
 		},
 	}
 }
@@ -90,6 +94,9 @@ func (c Config) Validate() error {
 	case "openai", "sharegpt":
 	default:
 		return fmt.Errorf("unknown build.format %q (want openai|sharegpt)", c.Build.Format)
+	}
+	if c.Build.ValRatio < 0 || c.Build.ValRatio >= 1 {
+		return fmt.Errorf("build.val_ratio must be in [0, 1), got %v", c.Build.ValRatio)
 	}
 	return nil
 }

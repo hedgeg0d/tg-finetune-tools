@@ -1,7 +1,9 @@
 package pipeline
 
 import (
+	"math/rand"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -20,6 +22,8 @@ type CleanStats struct {
 type BuildStats struct {
 	Messages      int
 	Conversations int
+	Train         int
+	Val           int
 }
 
 func Clean(inPath, outPath string, cfg config.Config) (CleanStats, error) {
@@ -140,19 +144,56 @@ func normalizeStream(in *os.File, cfg config.Config, read *int64, sink func(mode
 }
 
 func writeConversations(outPath string, msgs []model.Message, cfg config.Config) (BuildStats, error) {
-	out, err := os.Create(outPath)
+	convs := dataset.Build(msgs, cfg)
+	stats := BuildStats{Messages: len(msgs), Conversations: len(convs)}
+
+	if cfg.Build.ValRatio <= 0 {
+		if err := writeSplit(outPath, convs, cfg); err != nil {
+			return stats, err
+		}
+		stats.Train = len(convs)
+		return stats, nil
+	}
+
+	rng := rand.New(rand.NewSource(cfg.Build.Seed))
+	rng.Shuffle(len(convs), func(i, j int) { convs[i], convs[j] = convs[j], convs[i] })
+
+	valN := int(float64(len(convs)) * cfg.Build.ValRatio)
+	val, train := convs[:valN], convs[valN:]
+
+	trainPath, valPath := SplitPaths(outPath)
+	if err := writeSplit(trainPath, train, cfg); err != nil {
+		return stats, err
+	}
+	if err := writeSplit(valPath, val, cfg); err != nil {
+		return stats, err
+	}
+
+	stats.Train, stats.Val = len(train), len(val)
+	return stats, nil
+}
+
+func writeSplit(path string, convs []dataset.Conversation, cfg config.Config) error {
+	out, err := os.Create(path)
 	if err != nil {
-		return BuildStats{}, err
+		return err
 	}
 	defer out.Close()
 
-	convs := dataset.Build(msgs, cfg)
 	w := dataset.NewWriter(out)
 	for _, c := range convs {
 		if err := w.Write(dataset.Encode(c, cfg)); err != nil {
-			return BuildStats{}, err
+			return err
 		}
 	}
+	return w.Flush()
+}
 
-	return BuildStats{Messages: len(msgs), Conversations: len(convs)}, w.Flush()
+func SplitPaths(out string) (train, val string) {
+	ext := ""
+	if i := strings.LastIndex(out, "."); i >= 0 {
+		ext = out[i:]
+		out = out[:i]
+	}
+	return out + ".train" + ext, out + ".val" + ext
 }

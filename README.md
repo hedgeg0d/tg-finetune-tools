@@ -66,6 +66,8 @@ Run `./tgprep <command> -h` for the full flag list.
 | `build.min_turns` | discard conversations shorter than this |
 | `build.format` | `openai` (messages) or `sharegpt` (conversations) |
 | `build.system` | optional system prompt prepended to each conversation |
+| `build.val_ratio` | fraction held out for validation (`0` = single file) |
+| `build.seed` | shuffle seed for a reproducible train/val split |
 
 ## Output
 
@@ -74,3 +76,6 @@ Run `./tgprep <command> -h` for the full flag list.
 ```json
 {"messages":[{"role":"system","content":"..."},{"role":"user","content":"..."},{"role":"assistant","content":"..."}]}
 ```
+
+When `val_ratio > 0` the output is shuffled (by `seed`) and split into
+`<out>.train.jsonl` and `<out>.val.jsonl` instead of a single file.

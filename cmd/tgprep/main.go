@@ -93,7 +93,7 @@ func runBuild(args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(os.Stderr, "build: %d messages -> %d conversations -> %s\n", stats.Messages, stats.Conversations, *out)
+	fmt.Fprintf(os.Stderr, "build: %d messages -> %d conversations%s\n", stats.Messages, stats.Conversations, splitNote(stats, *out, cfg))
 	return nil
 }
 
@@ -122,8 +122,16 @@ func runAll(args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(os.Stderr, "all: read %d, kept %d -> %d conversations -> %s\n", cs.Read, cs.Kept, bs.Conversations, *out)
+	fmt.Fprintf(os.Stderr, "all: read %d, kept %d -> %d conversations%s\n", cs.Read, cs.Kept, bs.Conversations, splitNote(bs, *out, cfg))
 	return nil
+}
+
+func splitNote(bs pipeline.BuildStats, out string, cfg config.Config) string {
+	if cfg.Build.ValRatio <= 0 {
+		return fmt.Sprintf(" -> %s", out)
+	}
+	train, val := pipeline.SplitPaths(out)
+	return fmt.Sprintf(" -> train %d (%s), val %d (%s)", bs.Train, train, bs.Val, val)
 }
 
 func runInspect(args []string) error {
