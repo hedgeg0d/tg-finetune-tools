@@ -2,18 +2,22 @@ package memory
 
 import (
 	"encoding/json"
+	"regexp"
 	"strings"
 	"sync"
+	"unicode/utf8"
 
 	"github.com/hedgeg0d/tg-finetune-tools/internal/config"
 	"github.com/hedgeg0d/tg-finetune-tools/internal/llm"
 	"github.com/hedgeg0d/tg-finetune-tools/internal/model"
 )
 
-const defaultExtractInstruction = "Ниже фрагмент личной переписки, реплики помечены ролями. " +
-	"Извлеки устойчивые факты о человеке с ролью «assistant»: его жизнь, работа, учёба, отношения, " +
-	"предпочтения, привычки, взгляды — только то, что явно следует из текста, без домыслов. " +
-	"Верни ТОЛЬКО JSON-массив строк, каждая — один краткий факт на русском. Если фактов нет, верни []."
+const defaultExtractInstruction = "Дан фрагмент переписки двух людей; реплики помечены `assistant:` и `user:`. " +
+	"Извлеки устойчивые факты ТОЛЬКО про человека `assistant` (её жизнь, работа, учёба, здоровье, " +
+	"отношения, вкусы, привычки, взгляды). НЕ включай факты про `user`, не пересказывай отдельные " +
+	"реплики и эмоции момента, не выдумывай. Каждый факт — короткое утверждение в третьем лице. " +
+	"Ответь СТРОГО валидным JSON-массивом строк в двойных кавычках, например: " +
+	"[\"любит кошек\",\"учится на юриста\"]. Если устойчивых фактов нет — верни []."
 
 type extractCache struct {
 	Processed int    `json:"processed"`
@@ -88,24 +92,70 @@ func extractWindow(client *llm.Client, instr string, win []model.Message, roles 
 	return facts, nil
 }
 
+var quotedRe = regexp.MustCompile(`"([^"\\]*(?:\\.[^"\\]*)*)"`)
+var letterRe = regexp.MustCompile(`\p{L}`)
+
 func parseList(s string) []string {
-	s = strings.TrimSpace(s)
+	s = stripFences(s)
+	s = normalizeQuotes(s)
+
 	if i := strings.IndexByte(s, '['); i >= 0 {
 		if j := strings.LastIndexByte(s, ']'); j > i {
 			var arr []string
 			if json.Unmarshal([]byte(s[i:j+1]), &arr) == nil {
-				return arr
+				return cleanFacts(arr)
 			}
 		}
 	}
+
+	var found []string
+	for _, m := range quotedRe.FindAllStringSubmatch(s, -1) {
+		found = append(found, m[1])
+	}
+	if len(found) > 0 {
+		return cleanFacts(found)
+	}
+
 	var lines []string
 	for _, ln := range strings.Split(s, "\n") {
-		ln = strings.TrimSpace(ln)
-		ln = strings.TrimLeft(ln, "-*0123456789. \t")
-		ln = strings.Trim(ln, "\"")
-		if ln != "" {
-			lines = append(lines, ln)
-		}
+		lines = append(lines, ln)
 	}
-	return lines
+	return cleanFacts(lines)
+}
+
+func stripFences(s string) string {
+	s = strings.TrimSpace(s)
+	if strings.HasPrefix(s, "```") {
+		if i := strings.IndexByte(s, '\n'); i >= 0 {
+			s = s[i+1:]
+		}
+		s = strings.TrimSuffix(strings.TrimSpace(s), "```")
+	}
+	return s
+}
+
+func normalizeQuotes(s string) string {
+	r := strings.NewReplacer("«", "\"", "»", "\"", "„", "\"", "“", "\"", "”", "\"")
+	return r.Replace(s)
+}
+
+func cleanFacts(in []string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, t := range in {
+		t = strings.TrimSpace(t)
+		t = strings.TrimLeft(t, "-*•0123456789. \t")
+		t = strings.Trim(t, "\"',.;:[]() \t")
+		t = strings.TrimSpace(t)
+		if utf8.RuneCountInString(t) < 8 || !letterRe.MatchString(t) {
+			continue
+		}
+		key := strings.ToLower(t)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		out = append(out, t)
+	}
+	return out
 }

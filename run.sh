@@ -49,7 +49,7 @@ stage_header() {
 # ---------------------------------------------------------------------------
 # Pre-flight
 # ---------------------------------------------------------------------------
-[ -f ./tgprep ] || { log "building tgprep..."; go build -o tgprep ./cmd/tgprep; }
+log "building tgprep..."; go build -o tgprep ./cmd/tgprep
 [ -f "$IN" ] || die "input not found: $IN"
 [ -f "$CONFIG" ] || die "config not found: $CONFIG"
 
