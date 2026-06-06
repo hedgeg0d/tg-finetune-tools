@@ -15,8 +15,16 @@ import (
 )
 
 type CleanStats struct {
-	Read int64
-	Kept int64
+	Read    int64
+	Reasons [clean.NumReasons]int64
+}
+
+func (s CleanStats) Kept() int64 {
+	return s.Reasons[clean.Kept]
+}
+
+func (s CleanStats) Dropped() int64 {
+	return s.Read - s.Kept()
 }
 
 type BuildStats struct {
@@ -46,11 +54,10 @@ func Clean(inPath, outPath string, cfg config.Config) (CleanStats, error) {
 	sink := func(m model.Message) error {
 		mu.Lock()
 		defer mu.Unlock()
-		atomic.AddInt64(&stats.Kept, 1)
 		return w.Write(m)
 	}
 
-	if err := normalizeStream(in, cfg, &stats.Read, sink); err != nil {
+	if err := normalizeStream(in, cfg, &stats, sink); err != nil {
 		return stats, err
 	}
 	return stats, w.Flush()
@@ -86,11 +93,10 @@ func All(inPath, outPath string, cfg config.Config) (CleanStats, BuildStats, err
 		mu.Lock()
 		msgs = append(msgs, m)
 		mu.Unlock()
-		atomic.AddInt64(&stats.Kept, 1)
 		return nil
 	}
 
-	if err := normalizeStream(in, cfg, &stats.Read, sink); err != nil {
+	if err := normalizeStream(in, cfg, &stats, sink); err != nil {
 		return stats, BuildStats{}, err
 	}
 
@@ -98,7 +104,7 @@ func All(inPath, outPath string, cfg config.Config) (CleanStats, BuildStats, err
 	return stats, bs, err
 }
 
-func normalizeStream(in *os.File, cfg config.Config, read *int64, sink func(model.Message) error) error {
+func normalizeStream(in *os.File, cfg config.Config, stats *CleanStats, sink func(model.Message) error) error {
 	jobs := make(chan telegram.RawMessage, cfg.Workers*64)
 	errc := make(chan error, cfg.Workers+1)
 	var wg sync.WaitGroup
@@ -108,8 +114,9 @@ func normalizeStream(in *os.File, cfg config.Config, read *int64, sink func(mode
 		go func() {
 			defer wg.Done()
 			for raw := range jobs {
-				m, ok := clean.Normalize(raw, cfg)
-				if !ok {
+				m, reason := clean.Normalize(raw, cfg)
+				atomic.AddInt64(&stats.Reasons[reason], 1)
+				if reason != clean.Kept {
 					continue
 				}
 				if err := sink(m); err != nil {
@@ -124,7 +131,7 @@ func normalizeStream(in *os.File, cfg config.Config, read *int64, sink func(mode
 	}
 
 	produceErr := telegram.Stream(in, func(raw telegram.RawMessage) error {
-		atomic.AddInt64(read, 1)
+		atomic.AddInt64(&stats.Read, 1)
 		jobs <- raw
 		return nil
 	})

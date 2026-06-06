@@ -15,10 +15,10 @@ func TestFlattenStripsBareLinks(t *testing.T) {
 			{Type: "plain", Text: " now"},
 		},
 	}
-	if got := Flatten(m, true); got != "see now" {
+	if got := Flatten(m, true, false); got != "see now" {
 		t.Fatalf("strip on: got %q", got)
 	}
-	if got := Flatten(m, false); got != "see https://example.com now" {
+	if got := Flatten(m, false, false); got != "see https://example.com now" {
 		t.Fatalf("strip off: got %q", got)
 	}
 }
@@ -29,14 +29,14 @@ func TestFlattenTextLinkKeepsAnchor(t *testing.T) {
 			{Type: "text_link", Text: "click", Href: "https://x.y"},
 		},
 	}
-	if got := Flatten(m, true); got != "click" {
+	if got := Flatten(m, true, false); got != "click" {
 		t.Fatalf("got %q", got)
 	}
 }
 
 func TestFlattenArrayFallback(t *testing.T) {
 	m := telegram.RawMessage{Text: json.RawMessage(`[{"type":"spoiler","text":"hi"},""]`)}
-	if got := Flatten(m, true); got != "hi" {
+	if got := Flatten(m, true, false); got != "hi" {
 		t.Fatalf("got %q", got)
 	}
 }

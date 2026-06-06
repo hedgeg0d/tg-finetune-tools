@@ -7,21 +7,31 @@ import (
 	"github.com/hedgeg0d/tg-finetune-tools/internal/telegram"
 )
 
-func Flatten(m telegram.RawMessage, stripLinks bool) string {
+func Flatten(m telegram.RawMessage, stripLinks, redactPII bool) string {
 	if len(m.TextEntities) > 0 {
 		var b strings.Builder
 		for _, e := range m.TextEntities {
-			if e.Type == "link" && stripLinks {
+			if drop(e.Type, stripLinks, redactPII) {
 				continue
 			}
 			b.WriteString(e.Text)
 		}
 		return collapse(b.String())
 	}
-	return collapse(fromRaw(m.Text, stripLinks))
+	return collapse(fromRaw(m.Text, stripLinks, redactPII))
 }
 
-func fromRaw(raw json.RawMessage, stripLinks bool) string {
+func drop(entityType string, stripLinks, redactPII bool) bool {
+	if entityType == "link" && stripLinks {
+		return true
+	}
+	if redactPII && (entityType == "phone" || entityType == "email") {
+		return true
+	}
+	return false
+}
+
+func fromRaw(raw json.RawMessage, stripLinks, redactPII bool) string {
 	if len(raw) == 0 {
 		return ""
 	}
@@ -45,7 +55,7 @@ func fromRaw(raw json.RawMessage, stripLinks bool) string {
 		}
 		var ent telegram.Entity
 		if json.Unmarshal(p, &ent) == nil {
-			if ent.Type == "link" && stripLinks {
+			if drop(ent.Type, stripLinks, redactPII) {
 				continue
 			}
 			b.WriteString(ent.Text)

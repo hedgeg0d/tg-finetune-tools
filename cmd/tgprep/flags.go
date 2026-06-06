@@ -13,6 +13,7 @@ type overrides struct {
 	stickersToEmoji  bool
 	dropForwarded    bool
 	dropViaBot       bool
+	redactPII        bool
 	minRunes         int
 	gap              int
 	maxTurns         int
@@ -35,6 +36,7 @@ func registerOverrides(fs *flag.FlagSet) *overrides {
 	fs.BoolVar(&o.stickersToEmoji, "stickers-emoji", false, "override clean.stickers_to_emoji")
 	fs.BoolVar(&o.dropForwarded, "drop-forwarded", false, "override clean.drop_forwarded")
 	fs.BoolVar(&o.dropViaBot, "drop-via-bot", false, "override clean.drop_via_bot")
+	fs.BoolVar(&o.redactPII, "redact-pii", false, "override clean.redact_pii (drop phone/email)")
 	fs.IntVar(&o.minRunes, "min-runes", 0, "override clean.min_runes")
 	fs.IntVar(&o.gap, "gap", 0, "override build.session_gap_minutes")
 	fs.IntVar(&o.maxTurns, "max-turns", 0, "override build.max_turns")
@@ -65,6 +67,8 @@ func (o *overrides) apply(fs *flag.FlagSet, cfg *config.Config) {
 			cfg.Clean.DropForwarded = o.dropForwarded
 		case "drop-via-bot":
 			cfg.Clean.DropViaBot = o.dropViaBot
+		case "redact-pii":
+			cfg.Clean.RedactPII = o.redactPII
 		case "min-runes":
 			cfg.Clean.MinRunes = o.minRunes
 		case "gap":

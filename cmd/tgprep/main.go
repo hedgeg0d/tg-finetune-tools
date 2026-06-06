@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/hedgeg0d/tg-finetune-tools/internal/clean"
 	"github.com/hedgeg0d/tg-finetune-tools/internal/config"
 	"github.com/hedgeg0d/tg-finetune-tools/internal/pipeline"
 )
@@ -68,7 +69,8 @@ func runClean(args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(os.Stderr, "clean: read %d, kept %d -> %s\n", stats.Read, stats.Kept, *out)
+	printCleanStats(stats)
+	fmt.Fprintf(os.Stderr, "  -> %s\n", *out)
 	return nil
 }
 
@@ -122,8 +124,27 @@ func runAll(args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(os.Stderr, "all: read %d, kept %d -> %d conversations%s\n", cs.Read, cs.Kept, bs.Conversations, splitNote(bs, *out, cfg))
+	printCleanStats(cs)
+	fmt.Fprintf(os.Stderr, "build: %d conversations%s\n", bs.Conversations, splitNote(bs, *out, cfg))
 	return nil
+}
+
+func printCleanStats(s pipeline.CleanStats) {
+	fmt.Fprintf(os.Stderr, "clean:\n  read    %8d\n  kept    %8d\n  dropped %8d\n", s.Read, s.Kept(), s.Dropped())
+
+	var active []clean.ReasonInfo
+	for _, r := range clean.DropReasons {
+		if s.Reasons[r.Reason] > 0 {
+			active = append(active, r)
+		}
+	}
+	for i, r := range active {
+		branch := "├─"
+		if i == len(active)-1 {
+			branch = "└─"
+		}
+		fmt.Fprintf(os.Stderr, "    %s %-20s %8d\n", branch, r.Label, s.Reasons[r.Reason])
+	}
 }
 
 func splitNote(bs pipeline.BuildStats, out string, cfg config.Config) string {

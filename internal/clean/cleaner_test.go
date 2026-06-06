@@ -14,29 +14,46 @@ func testCfg() config.Config {
 }
 
 func TestNormalizeDropsService(t *testing.T) {
-	if _, ok := Normalize(telegram.RawMessage{Type: "service", FromID: "u"}, testCfg()); ok {
-		t.Fatal("service kept")
+	if _, r := Normalize(telegram.RawMessage{Type: "service", FromID: "u"}, testCfg()); r != DropService {
+		t.Fatalf("reason=%v", r)
 	}
 }
 
 func TestNormalizeDropsUnknownSender(t *testing.T) {
 	m := telegram.RawMessage{Type: "message", FromID: "x", TextEntities: []telegram.Entity{{Type: "plain", Text: "hi"}}}
-	if _, ok := Normalize(m, testCfg()); ok {
-		t.Fatal("unknown sender kept")
+	if _, r := Normalize(m, testCfg()); r != DropUnknownSender {
+		t.Fatalf("reason=%v", r)
 	}
 }
 
 func TestNormalizeStickerToEmoji(t *testing.T) {
 	m := telegram.RawMessage{Type: "message", FromID: "u", MediaType: "sticker", StickerEmoji: "🔥"}
-	got, ok := Normalize(m, testCfg())
-	if !ok || got.Text != "🔥" {
-		t.Fatalf("got %q ok=%v", got.Text, ok)
+	got, r := Normalize(m, testCfg())
+	if r != Kept || got.Text != "🔥" {
+		t.Fatalf("got %q reason=%v", got.Text, r)
 	}
 }
 
 func TestNormalizeDropsMediaWithoutText(t *testing.T) {
 	m := telegram.RawMessage{Type: "message", FromID: "u", MediaType: "video_file"}
-	if _, ok := Normalize(m, testCfg()); ok {
-		t.Fatal("empty media kept")
+	if _, r := Normalize(m, testCfg()); r != DropMedia {
+		t.Fatalf("reason=%v", r)
+	}
+}
+
+func TestNormalizeRedactsPII(t *testing.T) {
+	cfg := testCfg()
+	cfg.Clean.RedactPII = true
+	m := telegram.RawMessage{
+		Type:   "message",
+		FromID: "u",
+		TextEntities: []telegram.Entity{
+			{Type: "plain", Text: "call me "},
+			{Type: "phone", Text: "+1234567890"},
+		},
+	}
+	got, r := Normalize(m, cfg)
+	if r != Kept || got.Text != "call me" {
+		t.Fatalf("got %q reason=%v", got.Text, r)
 	}
 }

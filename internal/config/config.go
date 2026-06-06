@@ -18,6 +18,7 @@ type Clean struct {
 	StickersToEmoji bool `json:"stickers_to_emoji"`
 	DropForwarded   bool `json:"drop_forwarded"`
 	DropViaBot      bool `json:"drop_via_bot"`
+	RedactPII       bool `json:"redact_pii"`
 	MinRunes        int  `json:"min_runes"`
 }
 
@@ -50,6 +51,7 @@ func Default() Config {
 			StickersToEmoji: true,
 			DropForwarded:   true,
 			DropViaBot:      true,
+			RedactPII:       false,
 			MinRunes:        1,
 		},
 		Build: Build{

@@ -17,7 +17,9 @@ Processing runs in two phases that can be run separately or chained with `all`:
    bursts from the same author into one turn, window long sessions into
    training-sized conversations, and emit the chosen JSONL format.
 
-The clean phase is concurrent (worker pool) to handle large exports.
+The clean phase is concurrent (worker pool) to handle large exports and reports a
+breakdown of how many messages were dropped and why. PII redaction relies on the
+phone/email entities Telegram tags in the export.
 
 ## Install
 
@@ -60,6 +62,7 @@ Run `./tgprep <command> -h` for the full flag list.
 | `clean.strip_links` | drop bare URLs (anchor text is kept) |
 | `clean.stickers_to_emoji` | replace stickers with their emoji |
 | `clean.drop_forwarded` / `drop_via_bot` | filter forwarded and bot messages |
+| `clean.redact_pii` | drop phone-number and email entities |
 | `clean.min_runes` | discard messages shorter than this |
 | `build.session_gap_minutes` | inactivity gap that starts a new conversation |
 | `build.max_turns` / `max_chars` | window size for long sessions (`0` = unlimited) |
