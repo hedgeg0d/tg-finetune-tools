@@ -29,3 +29,15 @@ func TestParseListDedup(t *testing.T) {
 		t.Fatalf("got %v", got)
 	}
 }
+
+func TestAddDedupsAcrossWindows(t *testing.T) {
+	seen := map[string]bool{}
+	var facts []fact
+	add(&facts, seen, fact{Text: "имеет кошку"})
+	add(&facts, seen, fact{Text: "Имеет кошку "})
+	add(&facts, seen, fact{Text: "играет в доту"})
+	add(&facts, seen, fact{Text: ""})
+	if len(facts) != 2 {
+		t.Fatalf("got %d: %v", len(facts), facts)
+	}
+}

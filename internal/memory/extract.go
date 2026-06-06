@@ -26,8 +26,13 @@ type extractCache struct {
 
 func extractAll(wins [][]model.Message, roles config.Roles, mcfg config.Memory) ([]fact, error) {
 	cache, _ := loadJSON[extractCache](mcfg.CacheFile)
-	facts := cache.Facts
 	start := cache.Processed
+
+	seen := map[string]bool{}
+	var facts []fact
+	for _, f := range cache.Facts {
+		add(&facts, seen, f)
+	}
 
 	client := llm.New(mcfg.Extract)
 	instr := mcfg.Extract.Instruction
@@ -61,13 +66,25 @@ func extractAll(wins [][]model.Message, roles config.Roles, mcfg config.Memory) 
 				saveJSON(mcfg.CacheFile, extractCache{Processed: base + i, Facts: facts})
 				return facts, errs[i]
 			}
-			facts = append(facts, results[i]...)
+			for _, f := range results[i] {
+				add(&facts, seen, f)
+			}
 		}
 		progress("extracting facts", end, len(wins))
 		saveJSON(mcfg.CacheFile, extractCache{Processed: end, Facts: facts})
 	}
 	progressDone()
 	return facts, nil
+}
+
+func add(facts *[]fact, seen map[string]bool, f fact) bool {
+	key := strings.ToLower(strings.TrimSpace(f.Text))
+	if key == "" || seen[key] {
+		return false
+	}
+	seen[key] = true
+	*facts = append(*facts, f)
+	return true
 }
 
 func extractWindow(client *llm.Client, instr string, win []model.Message, roles config.Roles) ([]fact, error) {
