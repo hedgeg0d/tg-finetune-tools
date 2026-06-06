@@ -65,6 +65,16 @@ func TestBuildWindowsByMaxTurns(t *testing.T) {
 	}
 }
 
+func TestDedupRemovesIdenticalConversations(t *testing.T) {
+	a := Conversation{Turns: []Turn{{Role: "user", Content: "hi"}, {Role: "assistant", Content: "yo"}}}
+	b := Conversation{Turns: []Turn{{Role: "user", Content: "hi"}, {Role: "assistant", Content: "yo"}}}
+	c := Conversation{Turns: []Turn{{Role: "user", Content: "bye"}, {Role: "assistant", Content: "ok"}}}
+	got := Dedup([]Conversation{a, b, c})
+	if len(got) != 2 {
+		t.Fatalf("got %d", len(got))
+	}
+}
+
 func TestBuildDropsConversationWithoutAssistant(t *testing.T) {
 	in := []model.Message{msg(1, 0, "u", "a"), msg(2, 1, "u", "b")}
 	if got := len(Build(in, testCfg())); got != 0 {

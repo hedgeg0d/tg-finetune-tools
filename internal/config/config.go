@@ -34,6 +34,7 @@ type Build struct {
 	BurstSeparator    string  `json:"burst_separator"`
 	ValRatio          float64 `json:"val_ratio"`
 	Seed              int64   `json:"seed"`
+	Dedup             bool    `json:"dedup"`
 }
 
 type Config struct {
@@ -65,6 +66,7 @@ func Default() Config {
 			BurstSeparator:    "\n",
 			ValRatio:          0,
 			Seed:              42,
+			Dedup:             true,
 		},
 	}
 }

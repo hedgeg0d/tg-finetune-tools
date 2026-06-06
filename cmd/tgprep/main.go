@@ -95,7 +95,7 @@ func runBuild(args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(os.Stderr, "build: %d messages -> %d conversations%s\n", stats.Messages, stats.Conversations, splitNote(stats, *out, cfg))
+	fmt.Fprintf(os.Stderr, "build: %d messages -> %d conversations%s%s\n", stats.Messages, stats.Conversations, dupNote(stats), splitNote(stats, *out, cfg))
 	return nil
 }
 
@@ -125,8 +125,15 @@ func runAll(args []string) error {
 		return err
 	}
 	printCleanStats(cs)
-	fmt.Fprintf(os.Stderr, "build: %d conversations%s\n", bs.Conversations, splitNote(bs, *out, cfg))
+	fmt.Fprintf(os.Stderr, "build: %d conversations%s%s\n", bs.Conversations, dupNote(bs), splitNote(bs, *out, cfg))
 	return nil
+}
+
+func dupNote(bs pipeline.BuildStats) string {
+	if bs.Duplicates == 0 {
+		return ""
+	}
+	return fmt.Sprintf(" (%d duplicates removed)", bs.Duplicates)
 }
 
 func printCleanStats(s pipeline.CleanStats) {

@@ -30,6 +30,7 @@ func (s CleanStats) Dropped() int64 {
 type BuildStats struct {
 	Messages      int
 	Conversations int
+	Duplicates    int
 	Train         int
 	Val           int
 }
@@ -152,7 +153,13 @@ func normalizeStream(in *os.File, cfg config.Config, stats *CleanStats, sink fun
 
 func writeConversations(outPath string, msgs []model.Message, cfg config.Config) (BuildStats, error) {
 	convs := dataset.Build(msgs, cfg)
-	stats := BuildStats{Messages: len(msgs), Conversations: len(convs)}
+	duplicates := 0
+	if cfg.Build.Dedup {
+		before := len(convs)
+		convs = dataset.Dedup(convs)
+		duplicates = before - len(convs)
+	}
+	stats := BuildStats{Messages: len(msgs), Conversations: len(convs), Duplicates: duplicates}
 
 	if cfg.Build.ValRatio <= 0 {
 		if err := writeSplit(outPath, convs, cfg); err != nil {

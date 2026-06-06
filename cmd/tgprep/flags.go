@@ -26,6 +26,7 @@ type overrides struct {
 	burstSep         string
 	valRatio         float64
 	seed             int64
+	dedup            bool
 }
 
 func registerOverrides(fs *flag.FlagSet) *overrides {
@@ -49,6 +50,7 @@ func registerOverrides(fs *flag.FlagSet) *overrides {
 	fs.StringVar(&o.burstSep, "burst-sep", "", "override build.burst_separator")
 	fs.Float64Var(&o.valRatio, "val-ratio", 0, "override build.val_ratio (0 = no split)")
 	fs.Int64Var(&o.seed, "seed", 0, "override build.seed (shuffle for val split)")
+	fs.BoolVar(&o.dedup, "dedup", false, "override build.dedup (drop duplicate conversations)")
 	return o
 }
 
@@ -93,6 +95,8 @@ func (o *overrides) apply(fs *flag.FlagSet, cfg *config.Config) {
 			cfg.Build.ValRatio = o.valRatio
 		case "seed":
 			cfg.Build.Seed = o.seed
+		case "dedup":
+			cfg.Build.Dedup = o.dedup
 		}
 	})
 }

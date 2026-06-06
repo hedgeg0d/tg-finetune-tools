@@ -67,6 +67,7 @@ Run `./tgprep <command> -h` for the full flag list.
 | `build.session_gap_minutes` | inactivity gap that starts a new conversation |
 | `build.max_turns` / `max_chars` | window size for long sessions (`0` = unlimited) |
 | `build.min_turns` | discard conversations shorter than this |
+| `build.dedup` | drop conversations that are exact duplicates |
 | `build.format` | `openai` (messages) or `sharegpt` (conversations) |
 | `build.system` | optional system prompt prepended to each conversation |
 | `build.val_ratio` | fraction held out for validation (`0` = single file) |
