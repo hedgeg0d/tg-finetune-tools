@@ -1,5 +1,7 @@
 # tgprep
 
+[![CI](https://github.com/hedgeg0d/tg-finetune-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/hedgeg0d/tg-finetune-tools/actions/workflows/ci.yml)
+
 Turn a Telegram chat export into a clean, chat-formatted dataset ready for LLM fine-tuning.
 
 Point it at a personal chat export and it produces JSONL conversations where one
@@ -84,3 +86,7 @@ Run `./tgprep <command> -h` for the full flag list.
 
 When `val_ratio > 0` the output is shuffled (by `seed`) and split into
 `<out>.train.jsonl` and `<out>.val.jsonl` instead of a single file.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
