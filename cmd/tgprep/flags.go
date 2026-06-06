@@ -23,6 +23,7 @@ type overrides struct {
 	minTurns          int
 	format            string
 	system            string
+	systemMode        string
 	startWithUser     bool
 	requireAssistant  bool
 	burstSep          string
@@ -49,7 +50,8 @@ func registerOverrides(fs *flag.FlagSet) *overrides {
 	fs.StringVar(&o.tokenEncoding, "token-encoding", "", "override build.token_encoding (e.g. cl100k_base, o200k_base)")
 	fs.IntVar(&o.minTurns, "min-turns", 0, "override build.min_turns")
 	fs.StringVar(&o.format, "format", "", "override build.format (openai|sharegpt)")
-	fs.StringVar(&o.system, "system", "", "override build.system prompt")
+	fs.StringVar(&o.system, "system", "", "set a fixed build.system prompt (implies mode=fixed)")
+	fs.StringVar(&o.systemMode, "system-mode", "", "override build.system.mode (empty|fixed|pool|generated)")
 	fs.BoolVar(&o.startWithUser, "start-with-user", false, "override build.start_with_user")
 	fs.BoolVar(&o.requireAssistant, "require-assistant", false, "override build.require_assistant")
 	fs.StringVar(&o.burstSep, "burst-sep", "", "override build.burst_separator")
@@ -94,7 +96,10 @@ func (o *overrides) apply(fs *flag.FlagSet, cfg *config.Config) {
 		case "format":
 			cfg.Build.Format = o.format
 		case "system":
-			cfg.Build.System = o.system
+			cfg.Build.System.Mode = "fixed"
+			cfg.Build.System.Fixed = o.system
+		case "system-mode":
+			cfg.Build.System.Mode = o.systemMode
 		case "start-with-user":
 			cfg.Build.StartWithUser = o.startWithUser
 		case "require-assistant":

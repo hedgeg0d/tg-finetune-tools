@@ -22,6 +22,24 @@ type Clean struct {
 	MinRunes        int  `json:"min_runes"`
 }
 
+type Generated struct {
+	APIBase        string  `json:"api_base"`
+	APIKeyEnv      string  `json:"api_key_env"`
+	Model          string  `json:"model"`
+	BatchSize      int     `json:"batch_size"`
+	ContextSamples int     `json:"context_samples"`
+	Temperature    float64 `json:"temperature"`
+	Instruction    string  `json:"instruction"`
+	CacheFile      string  `json:"cache_file"`
+}
+
+type System struct {
+	Mode      string    `json:"mode"`
+	Fixed     string    `json:"fixed"`
+	Pool      []string  `json:"pool"`
+	Generated Generated `json:"generated"`
+}
+
 type Build struct {
 	SessionGapMinutes int     `json:"session_gap_minutes"`
 	MaxTurns          int     `json:"max_turns"`
@@ -30,7 +48,7 @@ type Build struct {
 	TokenEncoding     string  `json:"token_encoding"`
 	MinTurns          int     `json:"min_turns"`
 	Format            string  `json:"format"`
-	System            string  `json:"system"`
+	System            System  `json:"system"`
 	StartWithUser     bool    `json:"start_with_user"`
 	RequireAssistant  bool    `json:"require_assistant"`
 	BurstSeparator    string  `json:"burst_separator"`
@@ -72,6 +90,18 @@ func Default() Config {
 			ValRatio:          0,
 			Seed:              42,
 			Dedup:             true,
+			System: System{
+				Mode: "empty",
+				Generated: Generated{
+					APIBase:        "https://api.openai.com/v1",
+					APIKeyEnv:      "OPENAI_API_KEY",
+					Model:          "gpt-4o-mini",
+					BatchSize:      100,
+					ContextSamples: 20,
+					Temperature:    0.8,
+					CacheFile:      "system_prompts.json",
+				},
+			},
 		},
 	}
 }
@@ -106,6 +136,23 @@ func (c Config) Validate() error {
 	}
 	if c.Build.ValRatio < 0 || c.Build.ValRatio >= 1 {
 		return fmt.Errorf("build.val_ratio must be in [0, 1), got %v", c.Build.ValRatio)
+	}
+	switch c.Build.System.Mode {
+	case "", "empty", "fixed":
+	case "pool":
+		if len(c.Build.System.Pool) == 0 {
+			return errors.New("build.system.pool must be non-empty for pool mode")
+		}
+	case "generated":
+		g := c.Build.System.Generated
+		if g.APIBase == "" || g.Model == "" {
+			return errors.New("build.system.generated requires api_base and model")
+		}
+		if g.BatchSize < 1 {
+			return errors.New("build.system.generated.batch_size must be >= 1")
+		}
+	default:
+		return fmt.Errorf("unknown build.system.mode %q (want empty|fixed|pool|generated)", c.Build.System.Mode)
 	}
 	return nil
 }

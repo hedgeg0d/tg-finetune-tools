@@ -102,6 +102,7 @@ func runBuild(args []string) error {
 		return err
 	}
 
+	warnGenerated(cfg, *dryRun)
 	opts := pipeline.Options{DryRun: *dryRun, Sample: *sampleN}
 	stats, err := pipeline.Build(*in, *out, cfg, opts)
 	if err != nil {
@@ -140,6 +141,7 @@ func runAll(args []string) error {
 		return fmt.Errorf("--in is required")
 	}
 
+	warnGenerated(cfg, *dryRun)
 	opts := pipeline.Options{Progress: progressEnabled(*noProgress), DryRun: *dryRun, Sample: *sampleN}
 	cs, bs, err := pipeline.All(*in, *out, cfg, opts)
 	if err != nil {
@@ -187,12 +189,26 @@ func progressEnabled(noProgress bool) bool {
 func printSamples(convs []dataset.Conversation) {
 	for i, c := range convs {
 		fmt.Fprintf(os.Stderr, "\n─── sample %d ───\n", i+1)
+		if c.System != "" {
+			fmt.Fprintf(os.Stderr, "\033[33m[system]\033[0m %s\n", truncate(c.System, 240))
+		}
 		for _, t := range c.Turns {
 			fmt.Fprintf(os.Stderr, "%s %s\n", roleTag(t.Role), truncate(t.Content, 240))
 		}
 	}
 	if len(convs) > 0 {
 		fmt.Fprintln(os.Stderr)
+	}
+}
+
+func warnGenerated(cfg config.Config, dryRun bool) {
+	if dryRun || cfg.Build.System.Mode != "generated" {
+		return
+	}
+	g := cfg.Build.System.Generated
+	fmt.Fprintf(os.Stderr, "\033[33mwarning:\033[0m system.mode=generated will send sampled messages to %s (model %s).\n", g.APIBase, g.Model)
+	if !cfg.Clean.RedactPII {
+		fmt.Fprintln(os.Stderr, "         consider clean.redact_pii=true; data leaving your machine may be logged by the provider.")
 	}
 }
 

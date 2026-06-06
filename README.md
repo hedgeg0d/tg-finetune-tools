@@ -81,7 +81,7 @@ Run `./tgprep <command> -h` for the full flag list.
 | `build.dedup` | drop conversations that are exact duplicates |
 | `build.min_assistant_runes` | drop conversations where the assistant says too little |
 | `build.format` | `openai` (messages) or `sharegpt` (conversations) |
-| `build.system` | optional system prompt prepended to each conversation |
+| `build.system.mode` | how each conversation's system prompt is chosen (see below) |
 | `build.val_ratio` | fraction held out for validation (`0` = single file) |
 | `build.seed` | shuffle seed for a reproducible train/val split |
 
@@ -95,6 +95,23 @@ Run `./tgprep <command> -h` for the full flag list.
 
 When `val_ratio > 0` the output is shuffled (by `seed`) and split into
 `<out>.train.jsonl` and `<out>.val.jsonl` instead of a single file.
+
+## System prompts
+
+`build.system.mode` selects how the `system` message of each conversation is set:
+
+- `empty` — no system message.
+- `fixed` — the same `build.system.fixed` string everywhere.
+- `pool` — a random entry from `build.system.pool` per conversation (seeded), so the
+  model learns the *intent* of the prompt rather than memorizing one phrasing.
+- `generated` — conversations are grouped into batches of
+  `build.system.generated.batch_size`; for each batch a sample of the assistant's own
+  messages is sent to an OpenAI-compatible API, which writes a system prompt grounded
+  in that data. Prompts are cached in `cache_file` so re-runs are free and editable.
+
+> **Privacy:** `generated` mode sends private messages to `api_base`. Point it at a
+> local server (Ollama, llama.cpp, vLLM) to keep data on your machine, or enable
+> `clean.redact_pii`. The API key is read from the env var named by `api_key_env`.
 
 ## License
 

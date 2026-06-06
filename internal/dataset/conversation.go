@@ -14,7 +14,8 @@ type Turn struct {
 }
 
 type Conversation struct {
-	Turns []Turn
+	Turns  []Turn
+	System string
 }
 
 type Measure func(string) int

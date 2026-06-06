@@ -2,3 +2,4 @@
 *.jsonl
 ChatExport_*/
 config.json
+system_prompts.json

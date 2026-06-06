@@ -13,6 +13,7 @@ import (
 	"github.com/hedgeg0d/tg-finetune-tools/internal/config"
 	"github.com/hedgeg0d/tg-finetune-tools/internal/dataset"
 	"github.com/hedgeg0d/tg-finetune-tools/internal/model"
+	"github.com/hedgeg0d/tg-finetune-tools/internal/persona"
 	"github.com/hedgeg0d/tg-finetune-tools/internal/progress"
 	"github.com/hedgeg0d/tg-finetune-tools/internal/telegram"
 	"github.com/hedgeg0d/tg-finetune-tools/internal/tokenize"
@@ -194,6 +195,15 @@ func writeConversations(outPath string, msgs []model.Message, cfg config.Config,
 		convs = dataset.Dedup(convs)
 		duplicates = before - len(convs)
 	}
+
+	systems, err := persona.Assign(convs, cfg, opts.DryRun)
+	if err != nil {
+		return BuildStats{}, err
+	}
+	for i := range convs {
+		convs[i].System = systems[i]
+	}
+
 	stats := BuildStats{Messages: len(msgs), Conversations: len(convs), Duplicates: duplicates}
 
 	if opts.DryRun {

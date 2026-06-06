@@ -29,10 +29,10 @@ func Encode(c Conversation, cfg config.Config) any {
 	}
 }
 
-func openAI(c Conversation, cfg config.Config) oaRecord {
+func openAI(c Conversation, _ config.Config) oaRecord {
 	rec := oaRecord{}
-	if cfg.Build.System != "" {
-		rec.Messages = append(rec.Messages, oaMessage{Role: "system", Content: cfg.Build.System})
+	if c.System != "" {
+		rec.Messages = append(rec.Messages, oaMessage{Role: "system", Content: c.System})
 	}
 	for _, t := range c.Turns {
 		rec.Messages = append(rec.Messages, oaMessage{Role: t.Role, Content: t.Content})
@@ -40,10 +40,10 @@ func openAI(c Conversation, cfg config.Config) oaRecord {
 	return rec
 }
 
-func shareGPT(c Conversation, cfg config.Config) sgRecord {
+func shareGPT(c Conversation, _ config.Config) sgRecord {
 	rec := sgRecord{}
-	if cfg.Build.System != "" {
-		rec.Conversations = append(rec.Conversations, sgTurn{From: "system", Value: cfg.Build.System})
+	if c.System != "" {
+		rec.Conversations = append(rec.Conversations, sgTurn{From: "system", Value: c.System})
 	}
 	for _, t := range c.Turns {
 		rec.Conversations = append(rec.Conversations, sgTurn{From: sgRole(t.Role), Value: t.Content})
