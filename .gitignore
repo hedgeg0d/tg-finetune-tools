@@ -6,3 +6,4 @@ system_prompts.json
 *.log
 memory_facts.json
 memtest*
+.tgprep_state/
