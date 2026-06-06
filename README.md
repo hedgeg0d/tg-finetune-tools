@@ -41,7 +41,14 @@ go build -o tgprep ./cmd/tgprep
 # or run the phases separately
 ./tgprep clean --in result.json  --out clean.jsonl   --config config.json
 ./tgprep build --in clean.jsonl  --out dataset.jsonl --config config.json
+
+# preview sample conversations without writing anything
+./tgprep all --in result.json --config config.json --dry-run --sample 5
 ```
+
+A progress bar is shown automatically when the output is a terminal; disable it
+with `--no-progress`. `--dry-run` reports the same statistics (and, for `build`/`all`,
+previews a few conversations) without producing any files.
 
 Copy `config.example.json` to `config.json` and set the role ids from `inspect`.
 

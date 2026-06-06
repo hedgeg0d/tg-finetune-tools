@@ -7,7 +7,9 @@ import (
 
 	"github.com/hedgeg0d/tg-finetune-tools/internal/clean"
 	"github.com/hedgeg0d/tg-finetune-tools/internal/config"
+	"github.com/hedgeg0d/tg-finetune-tools/internal/dataset"
 	"github.com/hedgeg0d/tg-finetune-tools/internal/pipeline"
+	"github.com/hedgeg0d/tg-finetune-tools/internal/progress"
 )
 
 func main() {
@@ -50,6 +52,8 @@ func runClean(args []string) error {
 	out := fs.String("out", "clean.jsonl", "output normalized jsonl")
 	cfgPath := fs.String("config", "", "config file (json)")
 	workers := fs.Int("workers", 0, "override worker count")
+	dryRun := fs.Bool("dry-run", false, "report stats without writing output")
+	noProgress := fs.Bool("no-progress", false, "disable the progress bar")
 	ov := registerOverrides(fs)
 	fs.Parse(args)
 
@@ -65,12 +69,17 @@ func runClean(args []string) error {
 		return fmt.Errorf("--in is required")
 	}
 
-	stats, err := pipeline.Clean(*in, *out, cfg)
+	opts := pipeline.Options{Progress: progressEnabled(*noProgress), DryRun: *dryRun}
+	stats, err := pipeline.Clean(*in, *out, cfg, opts)
 	if err != nil {
 		return err
 	}
 	printCleanStats(stats)
-	fmt.Fprintf(os.Stderr, "  -> %s\n", *out)
+	if *dryRun {
+		fmt.Fprintln(os.Stderr, "  -> dry run, nothing written")
+	} else {
+		fmt.Fprintf(os.Stderr, "  -> %s\n", *out)
+	}
 	return nil
 }
 
@@ -79,6 +88,8 @@ func runBuild(args []string) error {
 	in := fs.String("in", "clean.jsonl", "normalized jsonl input")
 	out := fs.String("out", "dataset.jsonl", "finetune dataset output")
 	cfgPath := fs.String("config", "", "config file (json)")
+	dryRun := fs.Bool("dry-run", false, "preview sample conversations without writing")
+	sampleN := fs.Int("sample", 3, "number of conversations to preview with --dry-run")
 	ov := registerOverrides(fs)
 	fs.Parse(args)
 
@@ -91,9 +102,15 @@ func runBuild(args []string) error {
 		return err
 	}
 
-	stats, err := pipeline.Build(*in, *out, cfg)
+	opts := pipeline.Options{DryRun: *dryRun, Sample: *sampleN}
+	stats, err := pipeline.Build(*in, *out, cfg, opts)
 	if err != nil {
 		return err
+	}
+	if *dryRun {
+		printSamples(stats.Samples)
+		fmt.Fprintf(os.Stderr, "build: %d messages -> %d conversations%s (dry run)\n", stats.Messages, stats.Conversations, dupNote(stats))
+		return nil
 	}
 	fmt.Fprintf(os.Stderr, "build: %d messages -> %d conversations%s%s\n", stats.Messages, stats.Conversations, dupNote(stats), splitNote(stats, *out, cfg))
 	return nil
@@ -105,6 +122,9 @@ func runAll(args []string) error {
 	out := fs.String("out", "dataset.jsonl", "finetune dataset output")
 	cfgPath := fs.String("config", "", "config file (json)")
 	workers := fs.Int("workers", 0, "override worker count")
+	dryRun := fs.Bool("dry-run", false, "preview sample conversations without writing")
+	sampleN := fs.Int("sample", 3, "number of conversations to preview with --dry-run")
+	noProgress := fs.Bool("no-progress", false, "disable the progress bar")
 	ov := registerOverrides(fs)
 	fs.Parse(args)
 
@@ -120,11 +140,17 @@ func runAll(args []string) error {
 		return fmt.Errorf("--in is required")
 	}
 
-	cs, bs, err := pipeline.All(*in, *out, cfg)
+	opts := pipeline.Options{Progress: progressEnabled(*noProgress), DryRun: *dryRun, Sample: *sampleN}
+	cs, bs, err := pipeline.All(*in, *out, cfg, opts)
 	if err != nil {
 		return err
 	}
 	printCleanStats(cs)
+	if *dryRun {
+		printSamples(bs.Samples)
+		fmt.Fprintf(os.Stderr, "build: %d conversations%s (dry run)\n", bs.Conversations, dupNote(bs))
+		return nil
+	}
 	fmt.Fprintf(os.Stderr, "build: %d conversations%s%s\n", bs.Conversations, dupNote(bs), splitNote(bs, *out, cfg))
 	return nil
 }
@@ -154,6 +180,37 @@ func printCleanStats(s pipeline.CleanStats) {
 	}
 }
 
+func progressEnabled(noProgress bool) bool {
+	return !noProgress && progress.IsTerminal(os.Stderr)
+}
+
+func printSamples(convs []dataset.Conversation) {
+	for i, c := range convs {
+		fmt.Fprintf(os.Stderr, "\n─── sample %d ───\n", i+1)
+		for _, t := range c.Turns {
+			fmt.Fprintf(os.Stderr, "%s %s\n", roleTag(t.Role), truncate(t.Content, 240))
+		}
+	}
+	if len(convs) > 0 {
+		fmt.Fprintln(os.Stderr)
+	}
+}
+
+func roleTag(role string) string {
+	if role == "assistant" {
+		return "\033[32m[assistant]\033[0m"
+	}
+	return "\033[36m[user]\033[0m"
+}
+
+func truncate(s string, max int) string {
+	r := []rune(s)
+	if len(r) <= max {
+		return s
+	}
+	return string(r[:max]) + "…"
+}
+
 func splitNote(bs pipeline.BuildStats, out string, cfg config.Config) string {
 	if cfg.Build.ValRatio <= 0 {
 		return fmt.Sprintf(" -> %s", out)
@@ -165,13 +222,14 @@ func splitNote(bs pipeline.BuildStats, out string, cfg config.Config) string {
 func runInspect(args []string) error {
 	fs := flag.NewFlagSet("inspect", flag.ExitOnError)
 	in := fs.String("in", "", "telegram export result.json")
+	noProgress := fs.Bool("no-progress", false, "disable the progress bar")
 	fs.Parse(args)
 
 	if *in == "" {
 		return fmt.Errorf("--in is required")
 	}
 
-	rep, err := pipeline.Inspect(*in)
+	rep, err := pipeline.Inspect(*in, progressEnabled(*noProgress))
 	if err != nil {
 		return err
 	}

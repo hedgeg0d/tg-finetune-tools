@@ -1,9 +1,11 @@
 package pipeline
 
 import (
+	"io"
 	"os"
 	"sort"
 
+	"github.com/hedgeg0d/tg-finetune-tools/internal/progress"
 	"github.com/hedgeg0d/tg-finetune-tools/internal/telegram"
 )
 
@@ -19,18 +21,28 @@ type Report struct {
 	Media        map[string]int
 }
 
-func Inspect(inPath string) (Report, error) {
+func Inspect(inPath string, prog bool) (Report, error) {
 	in, err := os.Open(inPath)
 	if err != nil {
 		return Report{}, err
 	}
 	defer in.Close()
 
+	var src io.Reader = in
+	if prog {
+		if fi, err := in.Stat(); err == nil && fi.Size() > 0 {
+			pr := progress.NewReader(in)
+			stop := progress.Track("reading", fi.Size(), pr.Bytes)
+			defer stop()
+			src = pr
+		}
+	}
+
 	byID := map[string]*Participant{}
 	media := map[string]int{}
 	total := 0
 
-	err = telegram.Stream(in, func(raw telegram.RawMessage) error {
+	err = telegram.Stream(src, func(raw telegram.RawMessage) error {
 		total++
 		if raw.FromID != "" {
 			p := byID[raw.FromID]

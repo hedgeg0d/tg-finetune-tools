@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"io"
 	"math/rand"
 	"os"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/hedgeg0d/tg-finetune-tools/internal/config"
 	"github.com/hedgeg0d/tg-finetune-tools/internal/dataset"
 	"github.com/hedgeg0d/tg-finetune-tools/internal/model"
+	"github.com/hedgeg0d/tg-finetune-tools/internal/progress"
 	"github.com/hedgeg0d/tg-finetune-tools/internal/telegram"
 	"github.com/hedgeg0d/tg-finetune-tools/internal/tokenize"
 )
@@ -35,38 +37,54 @@ type BuildStats struct {
 	Duplicates    int
 	Train         int
 	Val           int
+	Samples       []dataset.Conversation
 }
 
-func Clean(inPath, outPath string, cfg config.Config) (CleanStats, error) {
+type Options struct {
+	Progress bool
+	DryRun   bool
+	Sample   int
+}
+
+func Clean(inPath, outPath string, cfg config.Config, opts Options) (CleanStats, error) {
 	in, err := os.Open(inPath)
 	if err != nil {
 		return CleanStats{}, err
 	}
 	defer in.Close()
 
-	out, err := os.Create(outPath)
-	if err != nil {
-		return CleanStats{}, err
+	var w *dataset.Writer
+	if !opts.DryRun {
+		out, err := os.Create(outPath)
+		if err != nil {
+			return CleanStats{}, err
+		}
+		defer out.Close()
+		w = dataset.NewWriter(out)
 	}
-	defer out.Close()
 
-	w := dataset.NewWriter(out)
 	var mu sync.Mutex
 	var stats CleanStats
 
 	sink := func(m model.Message) error {
+		if w == nil {
+			return nil
+		}
 		mu.Lock()
 		defer mu.Unlock()
 		return w.Write(m)
 	}
 
-	if err := normalizeStream(in, cfg, &stats, sink); err != nil {
+	if err := normalizeStream(in, cfg, &stats, sink, opts); err != nil {
 		return stats, err
+	}
+	if w == nil {
+		return stats, nil
 	}
 	return stats, w.Flush()
 }
 
-func Build(inPath, outPath string, cfg config.Config) (BuildStats, error) {
+func Build(inPath, outPath string, cfg config.Config, opts Options) (BuildStats, error) {
 	in, err := os.Open(inPath)
 	if err != nil {
 		return BuildStats{}, err
@@ -78,10 +96,10 @@ func Build(inPath, outPath string, cfg config.Config) (BuildStats, error) {
 		return BuildStats{}, err
 	}
 
-	return writeConversations(outPath, msgs, cfg)
+	return writeConversations(outPath, msgs, cfg, opts)
 }
 
-func All(inPath, outPath string, cfg config.Config) (CleanStats, BuildStats, error) {
+func All(inPath, outPath string, cfg config.Config, opts Options) (CleanStats, BuildStats, error) {
 	in, err := os.Open(inPath)
 	if err != nil {
 		return CleanStats{}, BuildStats{}, err
@@ -99,15 +117,15 @@ func All(inPath, outPath string, cfg config.Config) (CleanStats, BuildStats, err
 		return nil
 	}
 
-	if err := normalizeStream(in, cfg, &stats, sink); err != nil {
+	if err := normalizeStream(in, cfg, &stats, sink, opts); err != nil {
 		return stats, BuildStats{}, err
 	}
 
-	bs, err := writeConversations(outPath, msgs, cfg)
+	bs, err := writeConversations(outPath, msgs, cfg, opts)
 	return stats, bs, err
 }
 
-func normalizeStream(in *os.File, cfg config.Config, stats *CleanStats, sink func(model.Message) error) error {
+func normalizeStream(in *os.File, cfg config.Config, stats *CleanStats, sink func(model.Message) error, opts Options) error {
 	jobs := make(chan telegram.RawMessage, cfg.Workers*64)
 	errc := make(chan error, cfg.Workers+1)
 	var wg sync.WaitGroup
@@ -133,7 +151,17 @@ func normalizeStream(in *os.File, cfg config.Config, stats *CleanStats, sink fun
 		}()
 	}
 
-	produceErr := telegram.Stream(in, func(raw telegram.RawMessage) error {
+	var src io.Reader = in
+	if opts.Progress {
+		if fi, err := in.Stat(); err == nil && fi.Size() > 0 {
+			pr := progress.NewReader(in)
+			stop := progress.Track("reading", fi.Size(), pr.Bytes)
+			defer stop()
+			src = pr
+		}
+	}
+
+	produceErr := telegram.Stream(src, func(raw telegram.RawMessage) error {
 		atomic.AddInt64(&stats.Read, 1)
 		jobs <- raw
 		return nil
@@ -153,7 +181,7 @@ func normalizeStream(in *os.File, cfg config.Config, stats *CleanStats, sink fun
 	}
 }
 
-func writeConversations(outPath string, msgs []model.Message, cfg config.Config) (BuildStats, error) {
+func writeConversations(outPath string, msgs []model.Message, cfg config.Config, opts Options) (BuildStats, error) {
 	measure, err := measureFor(cfg)
 	if err != nil {
 		return BuildStats{}, err
@@ -167,6 +195,11 @@ func writeConversations(outPath string, msgs []model.Message, cfg config.Config)
 		duplicates = before - len(convs)
 	}
 	stats := BuildStats{Messages: len(msgs), Conversations: len(convs), Duplicates: duplicates}
+
+	if opts.DryRun {
+		stats.Samples = sample(convs, opts.Sample)
+		return stats, nil
+	}
 
 	if cfg.Build.ValRatio <= 0 {
 		if err := writeSplit(outPath, convs, cfg); err != nil {
@@ -208,6 +241,15 @@ func writeSplit(path string, convs []dataset.Conversation, cfg config.Config) er
 		}
 	}
 	return w.Flush()
+}
+
+func sample(convs []dataset.Conversation, n int) []dataset.Conversation {
+	if n <= 0 || n > len(convs) {
+		n = len(convs)
+	}
+	out := make([]dataset.Conversation, n)
+	copy(out, convs[:n])
+	return out
 }
 
 func measureFor(cfg config.Config) (dataset.Measure, error) {
