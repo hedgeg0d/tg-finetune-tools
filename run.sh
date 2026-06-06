@@ -14,7 +14,6 @@ CLEAN="${CLEAN:-clean.jsonl}"
 DATASET="${DATASET:-dataset.jsonl}"
 MEMORY="${MEMORY:-memory.jsonl}"
 OLLAMA="${OLLAMA:-http://localhost:11434}"
-EMBED_MODEL="${EMBED_MODEL:-nomic-embed-text}"
 RUN_MEMORY="${RUN_MEMORY:-1}"
 STATE_DIR="${STATE_DIR:-.tgprep_state}"
 
@@ -58,8 +57,9 @@ curl -sf --max-time 5 "$OLLAMA/api/tags" >/dev/null 2>&1 || die "ollama not reac
 
 if [ "$RUN_MEMORY" = "1" ]; then
   need_embed=$(python3 -c "import json;print(json.load(open('$CONFIG')).get('memory',{}).get('do_embeddings',False))" 2>/dev/null || echo False)
-  if [ "$need_embed" = "True" ]; then
-    if ! curl -sf --max-time 5 "$OLLAMA/api/tags" | grep -q "\"$EMBED_MODEL"; then
+  EMBED_MODEL="${EMBED_MODEL:-$(python3 -c "import json;print(json.load(open('$CONFIG')).get('memory',{}).get('embeddings',{}).get('model',''))" 2>/dev/null || true)}"
+  if [ "$need_embed" = "True" ] && [ -n "$EMBED_MODEL" ]; then
+    if ! curl -sf --max-time 5 "$OLLAMA/api/tags" | grep -q "\"${EMBED_MODEL%%:*}"; then
       log "${c_yel}embedding model '$EMBED_MODEL' missing — pulling...${c_reset}"
       ollama pull "$EMBED_MODEL" || die "failed to pull $EMBED_MODEL (or set memory.do_embeddings=false)"
     fi
