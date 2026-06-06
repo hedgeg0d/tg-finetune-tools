@@ -7,26 +7,27 @@ import (
 )
 
 type overrides struct {
-	assistantID      string
-	userID           string
-	stripLinks       bool
-	stickersToEmoji  bool
-	dropForwarded    bool
-	dropViaBot       bool
-	redactPII        bool
-	minRunes         int
-	gap              int
-	maxTurns         int
-	maxChars         int
-	minTurns         int
-	format           string
-	system           string
-	startWithUser    bool
-	requireAssistant bool
-	burstSep         string
-	valRatio         float64
-	seed             int64
-	dedup            bool
+	assistantID       string
+	userID            string
+	stripLinks        bool
+	stickersToEmoji   bool
+	dropForwarded     bool
+	dropViaBot        bool
+	redactPII         bool
+	minRunes          int
+	gap               int
+	maxTurns          int
+	maxChars          int
+	minTurns          int
+	format            string
+	system            string
+	startWithUser     bool
+	requireAssistant  bool
+	burstSep          string
+	valRatio          float64
+	seed              int64
+	dedup             bool
+	minAssistantRunes int
 }
 
 func registerOverrides(fs *flag.FlagSet) *overrides {
@@ -51,6 +52,7 @@ func registerOverrides(fs *flag.FlagSet) *overrides {
 	fs.Float64Var(&o.valRatio, "val-ratio", 0, "override build.val_ratio (0 = no split)")
 	fs.Int64Var(&o.seed, "seed", 0, "override build.seed (shuffle for val split)")
 	fs.BoolVar(&o.dedup, "dedup", false, "override build.dedup (drop duplicate conversations)")
+	fs.IntVar(&o.minAssistantRunes, "min-assistant-runes", 0, "override build.min_assistant_runes")
 	return o
 }
 
@@ -97,6 +99,8 @@ func (o *overrides) apply(fs *flag.FlagSet, cfg *config.Config) {
 			cfg.Build.Seed = o.seed
 		case "dedup":
 			cfg.Build.Dedup = o.dedup
+		case "min-assistant-runes":
+			cfg.Build.MinAssistantRunes = o.minAssistantRunes
 		}
 	})
 }

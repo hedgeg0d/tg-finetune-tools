@@ -117,7 +117,20 @@ func finalize(turns []Turn, cfg config.Config) (Conversation, bool) {
 	if len(turns) < cfg.Build.MinTurns {
 		return Conversation{}, false
 	}
+	if assistantRunes(turns) < cfg.Build.MinAssistantRunes {
+		return Conversation{}, false
+	}
 	return Conversation{Turns: turns}, true
+}
+
+func assistantRunes(turns []Turn) int {
+	total := 0
+	for _, t := range turns {
+		if t.Role == "assistant" {
+			total += utf8.RuneCountInString(t.Content)
+		}
+	}
+	return total
 }
 
 func hasAssistant(turns []Turn) bool {

@@ -65,6 +65,22 @@ func TestBuildWindowsByMaxTurns(t *testing.T) {
 	}
 }
 
+func TestBuildDropsLowAssistantContent(t *testing.T) {
+	cfg := testCfg()
+	cfg.Build.MinAssistantRunes = 5
+	in := []model.Message{
+		msg(1, 0, "u", "how are you doing today"),
+		msg(2, 1, "a", "ok"),
+	}
+	if got := len(Build(in, cfg)); got != 0 {
+		t.Fatalf("convs=%d", got)
+	}
+	cfg.Build.MinAssistantRunes = 1
+	if got := len(Build(in, cfg)); got != 1 {
+		t.Fatalf("convs=%d", got)
+	}
+}
+
 func TestDedupRemovesIdenticalConversations(t *testing.T) {
 	a := Conversation{Turns: []Turn{{Role: "user", Content: "hi"}, {Role: "assistant", Content: "yo"}}}
 	b := Conversation{Turns: []Turn{{Role: "user", Content: "hi"}, {Role: "assistant", Content: "yo"}}}

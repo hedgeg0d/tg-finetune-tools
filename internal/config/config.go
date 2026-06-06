@@ -35,6 +35,7 @@ type Build struct {
 	ValRatio          float64 `json:"val_ratio"`
 	Seed              int64   `json:"seed"`
 	Dedup             bool    `json:"dedup"`
+	MinAssistantRunes int     `json:"min_assistant_runes"`
 }
 
 type Config struct {
