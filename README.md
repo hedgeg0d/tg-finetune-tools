@@ -109,6 +109,9 @@ When `val_ratio > 0` the output is shuffled (by `seed`) and split into
   messages is sent to an OpenAI-compatible API, which writes a system prompt grounded
   in that data. Prompts are cached in `cache_file` so re-runs are free and editable.
 
+Set `api_style` to `openai` (default) or `ollama`. The `ollama` style targets
+Ollama's native `/api/chat` and disables model "thinking" for fast, clean output.
+
 > **Privacy:** `generated` mode sends private messages to `api_base`. Point it at a
 > local server (Ollama, llama.cpp, vLLM) to keep data on your machine, or enable
 > `clean.redact_pii`. The API key is read from the env var named by `api_key_env`.

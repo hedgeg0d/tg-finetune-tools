@@ -3,6 +3,7 @@ package persona
 import (
 	"fmt"
 	"math/rand"
+	"os"
 	"strings"
 
 	"github.com/hedgeg0d/tg-finetune-tools/internal/config"
@@ -55,15 +56,17 @@ func generated(convs []dataset.Conversation, cfg config.Config, offline bool) ([
 		} else {
 			c := newClient(g)
 			for b := len(prompts); b < batches; b++ {
+				fmt.Fprintf(os.Stderr, "\r  system prompts: %d/%d   ", b+1, batches)
 				p, err := c.generate(instruction(g), batchContext(convs, b, g))
 				if err != nil {
 					return nil, fmt.Errorf("generate system prompt for batch %d: %w", b, err)
 				}
 				prompts = append(prompts, strings.TrimSpace(p))
+				if err := saveCache(g.CacheFile, prompts); err != nil {
+					return nil, err
+				}
 			}
-			if err := saveCache(g.CacheFile, prompts); err != nil {
-				return nil, err
-			}
+			fmt.Fprintln(os.Stderr)
 		}
 	}
 

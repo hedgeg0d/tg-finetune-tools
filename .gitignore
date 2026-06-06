@@ -3,3 +3,4 @@
 ChatExport_*/
 config.json
 system_prompts.json
+*.log

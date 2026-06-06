@@ -15,6 +15,7 @@ import (
 
 type client struct {
 	base  string
+	style string
 	key   string
 	model string
 	temp  float64
@@ -22,13 +23,25 @@ type client struct {
 }
 
 func newClient(g config.Generated) *client {
+	style := g.APIStyle
+	if style == "" {
+		style = "openai"
+	}
 	return &client{
 		base:  strings.TrimRight(g.APIBase, "/"),
+		style: style,
 		key:   os.Getenv(g.APIKeyEnv),
 		model: g.Model,
 		temp:  g.Temperature,
-		http:  &http.Client{Timeout: 60 * time.Second},
+		http:  &http.Client{Timeout: 120 * time.Second},
 	}
+}
+
+func (c *client) generate(instruction, context string) (string, error) {
+	if c.style == "ollama" {
+		return c.generateOllama(instruction, context)
+	}
+	return c.generateOpenAI(instruction, context)
 }
 
 type chatMessage struct {
@@ -51,7 +64,7 @@ type chatResponse struct {
 	} `json:"error"`
 }
 
-func (c *client) generate(instruction, context string) (string, error) {
+func (c *client) generateOpenAI(instruction, context string) (string, error) {
 	payload, err := json.Marshal(chatRequest{
 		Model:       c.model,
 		Temperature: c.temp,
@@ -95,4 +108,53 @@ func (c *client) generate(instruction, context string) (string, error) {
 		return "", fmt.Errorf("api returned no choices")
 	}
 	return parsed.Choices[0].Message.Content, nil
+}
+
+type ollamaRequest struct {
+	Model    string         `json:"model"`
+	Stream   bool           `json:"stream"`
+	Think    bool           `json:"think"`
+	Options  map[string]any `json:"options"`
+	Messages []chatMessage  `json:"messages"`
+}
+
+type ollamaResponse struct {
+	Message chatMessage `json:"message"`
+	Error   string      `json:"error"`
+}
+
+func (c *client) generateOllama(instruction, context string) (string, error) {
+	payload, err := json.Marshal(ollamaRequest{
+		Model:   c.model,
+		Stream:  false,
+		Think:   false,
+		Options: map[string]any{"temperature": c.temp},
+		Messages: []chatMessage{
+			{Role: "system", Content: instruction},
+			{Role: "user", Content: context},
+		},
+	})
+	if err != nil {
+		return "", err
+	}
+
+	resp, err := c.http.Post(c.base+"/api/chat", "application/json", bytes.NewReader(payload))
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("ollama status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+
+	var parsed ollamaResponse
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		return "", err
+	}
+	if parsed.Error != "" {
+		return "", fmt.Errorf("ollama error: %s", parsed.Error)
+	}
+	return parsed.Message.Content, nil
 }

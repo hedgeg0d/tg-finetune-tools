@@ -30,6 +30,7 @@
       ],
       "generated": {
         "api_base": "https://api.openai.com/v1",
+        "api_style": "openai",
         "api_key_env": "OPENAI_API_KEY",
         "model": "gpt-4o-mini",
         "batch_size": 100,

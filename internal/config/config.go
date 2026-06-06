@@ -24,6 +24,7 @@ type Clean struct {
 
 type Generated struct {
 	APIBase        string  `json:"api_base"`
+	APIStyle       string  `json:"api_style"`
 	APIKeyEnv      string  `json:"api_key_env"`
 	Model          string  `json:"model"`
 	BatchSize      int     `json:"batch_size"`
@@ -150,6 +151,11 @@ func (c Config) Validate() error {
 		}
 		if g.BatchSize < 1 {
 			return errors.New("build.system.generated.batch_size must be >= 1")
+		}
+		switch g.APIStyle {
+		case "", "openai", "ollama":
+		default:
+			return fmt.Errorf("unknown build.system.generated.api_style %q (want openai|ollama)", g.APIStyle)
 		}
 	default:
 		return fmt.Errorf("unknown build.system.mode %q (want empty|fixed|pool|generated)", c.Build.System.Mode)
